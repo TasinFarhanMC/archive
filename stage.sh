@@ -10,6 +10,19 @@ mkdir -p "$ZIP_DIR"
 for project_dir in "$BASE_DIR"/*/; do
   [ -d "$project_dir" ] || continue
   project=$(basename "$project_dir")
+  zip_path="$ZIP_DIR/$project.zip"
+
+
+  latest_mtime=$(find "$project_dir" -type f \
+  \( -path "$project_dir/.git" -prune -o -print \) \
+  -printf '%T@\n' | sort -n | tail -1 || echo 0)
+
+  last_zip_time=$(stat -c %Y "$zip_path" 2>/dev/null || echo 0)
+
+  if (( $(echo "$latest_mtime <= $last_zip_time" | bc -l) )); then
+    echo "Processing project: $project, skiping"
+    continue
+  fi
 
   echo "Processing project: $project"
 
@@ -41,7 +54,6 @@ for project_dir in "$BASE_DIR"/*/; do
     continue
   fi
 
-  zip_path="$ZIP_DIR/$project.zip"
   rm -f "$zip_path"
 
   (
@@ -58,6 +70,8 @@ for project_dir in "$BASE_DIR"/*/; do
 
   if $git_repo_created; then
     rm -rf "$project_dir/.git"
+  else
+    zip -r -q "$zip_path" .git
   fi
 done
 
